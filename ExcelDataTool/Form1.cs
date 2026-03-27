@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using OfficeOpenXml;
 
-//11：03
 namespace ExcelDataTool
 {
     public partial class Form1 : Form
@@ -22,9 +21,13 @@ namespace ExcelDataTool
             cmbTaskSelect.Items.Add("大孟: 2025年2月 - 2025年5月");
             cmbTaskSelect.Items.Add("zjh: 2025年6月 - 2025年12月");
             cmbTaskSelect.Items.Add("Lucky: 2026年1月 - 2026年3月");
+            // ★ 新增：一键处理全部月份的选项
+            cmbTaskSelect.Items.Add("team汇总: 处理全部数据 (25年2月 - 26年3月)");
 
-            // 默认选中第2项（索引为1，我的任务）
-            cmbTaskSelect.SelectedIndex = 1;
+            // 默认选中第2项（索引为1，zjh的任务）
+
+            //默认选中最后一项（索引为3，team汇总的任务）
+            cmbTaskSelect.SelectedIndex = 3;
         }
 
         private void btnSelectFile_Click(object sender, EventArgs e)
@@ -74,6 +77,12 @@ namespace ExcelDataTool
                 endDate = new DateTime(2026, 3, 31);
                 fileNameSuffix = "2026年1月至3月";
             }
+            else if (cmbTaskSelect.SelectedIndex == 3) // ★ 新增：汇总所有人的数据
+            {
+                startDate = new DateTime(2025, 2, 1);
+                endDate = new DateTime(2026, 3, 31);
+                fileNameSuffix = "全部月份大汇总";
+            }
 
             // 动态生成防混淆的文件名
             string outputFilePath = Path.Combine(Path.GetDirectoryName(inputFilePath), $"分类处理完成_{fileNameSuffix}.xlsx");
@@ -93,7 +102,7 @@ namespace ExcelDataTool
             cmbTaskSelect.Enabled = true;
         }
 
-        // 核心数据处理函数
+        // 核心数据处理函数 (依然保留完美的跨表扫描、大小于1000条分类逻辑)
         private void ProcessExcelData(string inputFilePath, string outputFilePath, DateTime startDate, DateTime endDate)
         {
             try
@@ -106,10 +115,9 @@ namespace ExcelDataTool
                     var dailyData = new Dictionary<DateTime, List<List<object>>>();
                     int validCount = 0;
 
-                    // ★ 核心改动：遍历 Excel 中的每一个 Sheet
+                    // 遍历 Excel 中的每一个 Sheet，完美解决 Lucky 数据跨表的问题
                     foreach (var worksheet in package.Workbook.Worksheets)
                     {
-                        // 如果遇到完全空白的 Sheet，直接跳过，防止报错
                         if (worksheet.Dimension == null) continue;
 
                         int rowCount = worksheet.Dimension.Rows;
@@ -117,7 +125,6 @@ namespace ExcelDataTool
 
                         AppendLog($"🔍 正在扫描表单：[{worksheet.Name}]，共 {rowCount} 行...");
 
-                        // 只在第一次循环时（headers为空）提取表头，假设所有 Sheet 结构一样
                         if (headers.Count == 0)
                         {
                             for (int col = 1; col <= colCount; col++)
@@ -126,7 +133,6 @@ namespace ExcelDataTool
                             }
                         }
 
-                        // 遍历当前 Sheet 的数据（从第2行开始，跳过表头）
                         for (int row = 2; row <= rowCount; row++)
                         {
                             var dateValue = worksheet.Cells[row, 7].Value;
@@ -153,7 +159,6 @@ namespace ExcelDataTool
                                 validCount++;
                             }
 
-                            // 进度提示：每 50000 行打印一次
                             if (row % 50000 == 0)
                             {
                                 AppendLog($"...[{worksheet.Name}] 正在扫描第 {row} 行...");
@@ -163,7 +168,7 @@ namespace ExcelDataTool
 
                     AppendLog($"🎯 筛选完毕！所有表单中符合条件的数据总计：{validCount} 条。开始按规则写入新表...");
 
-                    // 开始写入新文件
+                    // 开始写入新文件（依然保持 >1000 单独建表，<=1000 合并的规则）
                     using (var outPackage = new ExcelPackage(new FileInfo(outputFilePath)))
                     {
                         var smallDataList = new List<List<object>>();
@@ -194,13 +199,12 @@ namespace ExcelDataTool
                             WriteDataToSheet(summarySheet, headers, smallDataList);
                         }
 
-                        AppendLog("💾 正在保存新文件至硬盘...");
+                        AppendLog("💾 正在全力保存新文件至硬盘（数据量较大，请耐心等待几秒）...");
                         outPackage.Save();
                     }
 
                     AppendLog("=========================================");
-                    AppendLog($"🎉 大功告成！新文件位置：");
-                    AppendLog(outputFilePath);
+                    AppendLog($"🎉 大功告成！生成的文件名为：{Path.GetFileName(outputFilePath)}");
                 }
             }
             catch (Exception ex)
