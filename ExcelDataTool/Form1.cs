@@ -67,7 +67,7 @@ namespace ExcelDataTool
                 endDate = new DateTime(2025, 12, 31);
                 fileNameSuffix = "2025年6月至12月";
             }
-            else if (cmbTaskSelect.SelectedIndex == 2) // 同事B
+            else if (cmbTaskSelect.SelectedIndex == 2) // 同事B (Lucky)
             {
                 startDate = new DateTime(2026, 1, 1);
                 endDate = new DateTime(2026, 3, 31);
@@ -92,63 +92,77 @@ namespace ExcelDataTool
             cmbTaskSelect.Enabled = true;
         }
 
-        // 注意这里多接收了 startDate 和 endDate 两个参数
+        // 核心数据处理函数
         private void ProcessExcelData(string inputFilePath, string outputFilePath, DateTime startDate, DateTime endDate)
         {
             try
             {
                 using (var package = new ExcelPackage(new FileInfo(inputFilePath)))
                 {
-                    var worksheet = package.Workbook.Worksheets[0];
-                    int rowCount = worksheet.Dimension.Rows;
-                    int colCount = worksheet.Dimension.Columns;
-
-                    AppendLog($"✅ 成功打开表格，总计发现 {rowCount} 行数据，开始精准过滤...");
+                    AppendLog($"✅ 成功打开表格，准备扫描所有 Sheet...");
 
                     var headers = new List<string>();
-                    for (int col = 1; col <= colCount; col++)
-                    {
-                        headers.Add(worksheet.Cells[1, col].Text);
-                    }
-
                     var dailyData = new Dictionary<DateTime, List<List<object>>>();
                     int validCount = 0;
 
-                    for (int row = 2; row <= rowCount; row++)
+                    // ★ 核心改动：遍历 Excel 中的每一个 Sheet
+                    foreach (var worksheet in package.Workbook.Worksheets)
                     {
-                        var dateValue = worksheet.Cells[row, 7].Value;
-                        DateTime rowDate = DateTime.MinValue;
-                        bool isValidDate = false;
+                        // 如果遇到完全空白的 Sheet，直接跳过，防止报错
+                        if (worksheet.Dimension == null) continue;
 
-                        if (dateValue is DateTime dt) { rowDate = dt.Date; isValidDate = true; }
-                        else if (dateValue is double d) { rowDate = DateTime.FromOADate(d).Date; isValidDate = true; }
-                        else if (DateTime.TryParse(dateValue?.ToString(), out DateTime parsedDt)) { rowDate = parsedDt.Date; isValidDate = true; }
+                        int rowCount = worksheet.Dimension.Rows;
+                        int colCount = worksheet.Dimension.Columns;
 
-                        // ★ 这里使用动态传进来的变量，替代了之前写死的2025年6-12月
-                        if (isValidDate && rowDate >= startDate && rowDate <= endDate)
+                        AppendLog($"🔍 正在扫描表单：[{worksheet.Name}]，共 {rowCount} 行...");
+
+                        // 只在第一次循环时（headers为空）提取表头，假设所有 Sheet 结构一样
+                        if (headers.Count == 0)
                         {
-                            var rowData = new List<object>();
                             for (int col = 1; col <= colCount; col++)
                             {
-                                rowData.Add(worksheet.Cells[row, col].Value);
+                                headers.Add(worksheet.Cells[1, col].Text);
                             }
-
-                            if (!dailyData.ContainsKey(rowDate))
-                            {
-                                dailyData[rowDate] = new List<List<object>>();
-                            }
-                            dailyData[rowDate].Add(rowData);
-                            validCount++;
                         }
 
-                        if (row % 50000 == 0)
+                        // 遍历当前 Sheet 的数据（从第2行开始，跳过表头）
+                        for (int row = 2; row <= rowCount; row++)
                         {
-                            AppendLog($"...正在扫描第 {row} 行...");
+                            var dateValue = worksheet.Cells[row, 7].Value;
+                            DateTime rowDate = DateTime.MinValue;
+                            bool isValidDate = false;
+
+                            if (dateValue is DateTime dt) { rowDate = dt.Date; isValidDate = true; }
+                            else if (dateValue is double d) { rowDate = DateTime.FromOADate(d).Date; isValidDate = true; }
+                            else if (DateTime.TryParse(dateValue?.ToString(), out DateTime parsedDt)) { rowDate = parsedDt.Date; isValidDate = true; }
+
+                            if (isValidDate && rowDate >= startDate && rowDate <= endDate)
+                            {
+                                var rowData = new List<object>();
+                                for (int col = 1; col <= colCount; col++)
+                                {
+                                    rowData.Add(worksheet.Cells[row, col].Value);
+                                }
+
+                                if (!dailyData.ContainsKey(rowDate))
+                                {
+                                    dailyData[rowDate] = new List<List<object>>();
+                                }
+                                dailyData[rowDate].Add(rowData);
+                                validCount++;
+                            }
+
+                            // 进度提示：每 50000 行打印一次
+                            if (row % 50000 == 0)
+                            {
+                                AppendLog($"...[{worksheet.Name}] 正在扫描第 {row} 行...");
+                            }
                         }
                     }
 
-                    AppendLog($"🎯 筛选完毕！该时间段内共有符合条件的数据：{validCount} 条。开始按规则写入新表...");
+                    AppendLog($"🎯 筛选完毕！所有表单中符合条件的数据总计：{validCount} 条。开始按规则写入新表...");
 
+                    // 开始写入新文件
                     using (var outPackage = new ExcelPackage(new FileInfo(outputFilePath)))
                     {
                         var smallDataList = new List<List<object>>();
