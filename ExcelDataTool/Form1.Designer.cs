@@ -82,7 +82,7 @@
             this.rtbLogs.ReadOnly = true;
             this.rtbLogs.Size = new System.Drawing.Size(618, 320);
             this.rtbLogs.TabIndex = 3;
-            this.rtbLogs.Text = "欢迎使用团队版数据处理工具！\n1. 请点击“选择 Excel”加载总表。\n2. 选择你需要处理的月份区间。\n3. 点击“开始处理”。\n";
+            this.rtbLogs.Text = "欢迎使用team版数据处理工具！\n1. 请点击“选择 Excel”加载总表。\n2. 选择你需要处理的月份区间。\n3. 点击“开始处理”。\n";
 
             // Form1
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -95,7 +95,7 @@
             this.Controls.Add(this.btnSelectFile);
             this.Controls.Add(this.txtFilePath);
             this.Name = "Form1";
-            this.Text = "团队协作版 Excel 分类神器";
+            this.Text = "team协作版 Excel 分类器";
             this.ResumeLayout(false);
             this.PerformLayout();
         }

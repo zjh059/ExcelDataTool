@@ -16,14 +16,14 @@ namespace ExcelDataTool
             InitializeComponent();
 
             // ★ 新版 EPPlus 的免费许可声明方式
-            ExcelPackage.License.SetNonCommercialPersonal("团队协作使用");
+            ExcelPackage.License.SetNonCommercialPersonal("team协作使用");
 
             // ★ 初始化下拉菜单的选项
             cmbTaskSelect.Items.Add("大孟: 2025年2月 - 2025年5月");
             cmbTaskSelect.Items.Add("zjh: 2025年6月 - 2025年12月");
             cmbTaskSelect.Items.Add("Lucky: 2026年1月 - 2026年3月");
 
-            // 默认选中第2项（索引为1，也就是你的任务）
+            // 默认选中第2项（索引为1，我的任务）
             cmbTaskSelect.SelectedIndex = 1;
         }
 
@@ -199,7 +199,7 @@ namespace ExcelDataTool
                     }
 
                     AppendLog("=========================================");
-                    AppendLog($"🎉 大功告成！文件绝对不会混淆，新文件位置：");
+                    AppendLog($"🎉 大功告成！新文件位置：");
                     AppendLog(outputFilePath);
                 }
             }
